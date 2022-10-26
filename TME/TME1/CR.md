@@ -63,7 +63,7 @@ correspondante dans le niveau courant.
 
 # Question 2 :
 
-Implémentez la fonction ``void map_page(struct task *ctx, vaddr t vaddr, paddr t paddr)``
+Implémentez la fonction ``void map_page(struct task *ctx, vaddr_t vaddr, paddr_t paddr)``
 dans le fichier kernel/memory.c qui mappe l’adresse virtuelle vaddr sur l’adresse physique ``paddr`` sur
 un espace d’une page pour la tâche ctx. L’adresse physique du premier niveau de la table des pages est
 indiquée par ctx->pgt.

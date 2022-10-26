@@ -7,12 +7,12 @@
 
 struct task
 {
-	paddr_t                   pgt;                   /* page table paddr */
-	paddr_t                   load_paddr;      /* paddr of the task code */
-	paddr_t                   load_end_paddr;    /* paddr following code */
-	vaddr_t                   load_vaddr;        /* vaddr for load_paddr */
-	vaddr_t                   bss_end_vaddr;      /* vaddr following bss */
-	struct interrupt_context  context;       /* task registers save area */
+	paddr_t                   pgt;                  /* page table paddr */
+	paddr_t                   load_paddr;      		/* paddr of the task code */
+	paddr_t                   load_end_paddr;    	/* paddr following code */
+	vaddr_t                   load_vaddr;        	/* vaddr for load_paddr */
+	vaddr_t                   bss_end_vaddr;      	/* vaddr following bss */
+	struct interrupt_context  context;       		/* task registers save area */
 };
 
 
