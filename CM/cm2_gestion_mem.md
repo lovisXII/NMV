@@ -202,6 +202,12 @@ La table des pages est décomposée en 4 niveaux.
 Indice sur 9 bits psq on a une page qui fait $2^{12}$ octets et une case fait 8 octets (1 mot 64 bits). Du coup on a $2^9$ cases, d'où les 9 bits.
 
 D'où le 2^48 pages virtuelles possibles.
+
+# Huge page
+
+Il a 1 PML4 qui possède 512 entrées et qui pointe vers 512 PML3, les PML2 pointent vers 512 PML1...Etc
+C'est gros et des fois on veut éviter d'utiliser PML1, donc la PML2 peut pointer directement sur des **huge pages**. Ce sont des pages plus grosses qui sont des pages "physiques".
+
 # Segments :
 * .BSS :variables globales non initialisées ou initialiser à 0
 * .text : le code (binaire des inst)
