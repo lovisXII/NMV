@@ -2,27 +2,8 @@
 #include <printk.h>
 #include <string.h>
 #include <x86.h>
+#include <mask_and_coo.h>
 
-
-#define PHYSICAL_POOL_PAGES  	64
-#define PHYSICAL_POOL_BYTES  	(PHYSICAL_POOL_PAGES << 12)
-#define BITSET_SIZE          	(PHYSICAL_POOL_PAGES >> 6)
-
-#define PGT_VALID_MASK 			0x1
-#define PGT_ADRESS_MASK 		0xFFFFFFFFFF000
-#define PGT_HUGEPAGE_MASK 		0x80
-
-#define PGT_IS_VALID(p) 		(p & PGT_VALID_MASK)
-#define PGT_IS_HUGE_PAGE(p)		(p & PGT_HUGEPAGE_MASK)
-#define PGT_ADRESS(p)			(p & PGT_ADRESS_MASK)
-
-#define PGT_PML4_INDEX(vaddr) 	((vaddr >> (12+9*3)) 	& 0x1FF)
-#define PGT_PML3_INDEX(vaddr) 	((vaddr >> (12+9*2)) 	& 0x1FF)
-#define PGT_PML2_INDEX(vaddr) 	((vaddr >> (12+9)) 		& 0x1FF)
-#define PGT_PML1_INDEX(vaddr) 	((vaddr >> (12)) 		& 0x1FF)
-
-
-#define PGT_W_P_U_MASK	0x11 // mask pour User+Writtable+valid
 
 
 
@@ -120,12 +101,16 @@ void free_page(paddr_t addr)
 
 
 void map_page(struct task *ctx, vaddr_t vaddr, paddr_t paddr)
-
+// Allow to mapp the virtual adresse vaddr on the physical one paddr
+// ctx is the current task 
 {
-	uint64_t *p = (uint64_t *) ctx->pgt; //adresse physique du 1er niveau de la table de pages
+	printk("Allocating virtual adresse : 0x%lx to physical adresse 0x%lx\n",vaddr,paddr);
+	uint64_t *p = (uint64_t *) ctx->pgt; // first leval page table paddr
+	printk("PML4 of the task is located at 0x%lx\n",p);
 	paddr_t tmp;
 	
-	// On part du principe de PML4 existe et est correct
+	// We suppose that the physical of PML4 is correct
+	// We get the PML index of each PML from the vaddr
 
 	uint64_t pml4_index = PGT_PML4_INDEX(vaddr); 
 	uint64_t pml3_index = PGT_PML3_INDEX(vaddr); 
@@ -138,65 +123,94 @@ void map_page(struct task *ctx, vaddr_t vaddr, paddr_t paddr)
 	printk("PML1 : 0x%lx\n", pml1_index);
 
 
-	// Allocation de PML3 au cas où il ne serait pas valide :
+	// We are going the check if the PMLi are allocated and if not
+	// we are going to do the allocation
+	
+	// p[PGT_PML4_INDEX(vaddr)] :
+
+	// p 						= adr PML4
+	// PGT_PML4_INDEX(vaddr) 	= index we want to access in PML4
+	// p[PGT_PML4_INDEX(vaddr)] = p + PGT_PML4_INDEX(vaddr)
 
 	if(!PGT_IS_VALID(p[PGT_PML4_INDEX(vaddr)])) 
-	// vérifie que l'adresse de la PML 4 est valide 
+	// Checking if PML3 is valid
 	{
 		printk("PML3 not initialy valid, we do alloc it\n");
-		// On va récupérer une page valide affectée via la fonction identité :
+
+		// We get a new page which is not yet used
+		// We'll use the adress of this new page as starting point for PML3
 
 		tmp = alloc_page(); 
 		
-		// On initialise la page récupérée à zero
+		// We initialize all the data in the page to 0
 		
 		memset((void*) tmp, 0, 4096) ;
 
-		// On va vouloir écrire dans l'adresse récupérée  :
 		
-		// p contient l'adresse physique du 1er niveau de la table des pages (PML4)
-		// p[PGT_PML4_INDEX(vaddr)] correspond à l'index dans la page de l'adresse
-		// virtuelle envoyée
-
-		// Allocation de PML3
+		// We write the new page allocated inside the PML4
 
 		p[PGT_PML4_INDEX(vaddr)] |= (tmp | PGT_W_P_U_MASK); 
 	}
 	else{
 
 		printk("PML3 was already allocated\n");
+		printk("PML3 adress is 0x%lx\n", p[PGT_PML4_INDEX(vaddr)]);
 	}
-	p = (uint64_t *) PGT_ADRESS(p[PGT_PML4_INDEX(vaddr)]); // On récupère l'adresse de PML3
+	
+	// Getting the adress of PML3
+
+	p = (uint64_t *) PGT_ADRESS(p[PGT_PML4_INDEX(vaddr)]); 
 
 	if(!PGT_IS_VALID(p[PGT_PML3_INDEX(vaddr)])){
 		printk("PML2 not initialy valid, we do alloc it\n");
 		tmp = alloc_page();
 		memset((void *)tmp, 0, 4096);
+
 		p[PGT_PML3_INDEX(vaddr)] |= (tmp | PGT_W_P_U_MASK); 
 	}
+	else{
 
+		printk("PML2 was already allocated\n");
+		printk("PML2 adress is 0x%lx\n", p[PGT_PML3_INDEX(vaddr)]);
+	}
 
-	p = (uint64_t *) PGT_ADRESS(p[PGT_PML3_INDEX(vaddr)]); // On récupère l'adresse de PML2
+	// PML2 :
 
+	p = (uint64_t *) PGT_ADRESS(p[PGT_PML3_INDEX(vaddr)]); 
+
+	printk("0x%lx is containing 0x%lx\n",p,*p);
+	printk("0x%lx is containing 0x%lx\n",p+1,*(p+1));
+	printk("PML2 is : 0x%lx\n", p);
 	if(!PGT_IS_VALID(p[PGT_PML2_INDEX(vaddr)])){
 		printk("PML1 not initialy valid, we do alloc it\n");
 		tmp = alloc_page();
 		memset((void *)tmp, 0, 4096);
 		p[PGT_PML2_INDEX(vaddr)] |= (tmp | PGT_W_P_U_MASK); 
 	}
+	else{
 
-
-	p = (uint64_t *) PGT_ADRESS(p[PGT_PML2_INDEX(vaddr)]); // On récupère l'adresse de PML1
-	if(!PGT_IS_VALID(p[PGT_PML1_INDEX(vaddr)])){
-		printk("PML0 not initialy valid, we do alloc it\n");
-		tmp = alloc_page();
-		memset((void *)tmp, 0, 4096);
-		p[PGT_PML1_INDEX(vaddr)] |= (tmp | PGT_W_P_U_MASK); 
+		printk("PML1 was already allocated\n");
+		printk("PML1 adress is 0x%lx\n", p[PGT_PML2_INDEX(vaddr)]);
 	}
 
+	// PML1 :
+	p = (uint64_t *) PGT_ADRESS(p[PGT_PML2_INDEX(vaddr)]); 
+
+	if(!PGT_IS_VALID(p[PGT_PML1_INDEX(vaddr)])){
+		printk("Mapping virtual adresse 0x%lx on physical adresse 0x%lx\n",vaddr,paddr);
+		tmp = alloc_page();
+		memset((void *)tmp, 0, 4096);
+		p[PGT_PML1_INDEX(vaddr)] |= (paddr | PGT_W_P_U_MASK); 
+	}
+	else{
+		printk("[error] virtual adresse 0x%lx was already translated\n",vaddr);
+	}
 }
 void load_task(struct task *ctx)
+// This function loads the code of a specific task inside the memory
 {
+	paddr_t pml4_adress = ctx->pgt;
+	// 1st step is to copy the 
 }
 
 void set_task(struct task *ctx)

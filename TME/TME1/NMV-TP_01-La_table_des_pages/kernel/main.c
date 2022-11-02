@@ -7,9 +7,8 @@
 #include <types.h>              /* provides stdint and general purpose types */
 #include <vga.h>                                         /* provides clear() */
 #include <x86.h>                                    /* access to cr3 and cr2 */
-
-#define PGT_ADRESS_MASK 		0xFFFFFFFFFF000
-
+#include <mask_and_coo.h>
+		
 __attribute__((noreturn))
 void die(void)
 {
@@ -22,16 +21,24 @@ void die(void)
 }
 
 void print_pgt(paddr_t pm1, uint8_t lvl)
+// pm1 : physical adress of a page lvl
+// lvl : level of the page table
 {
 	if(lvl < 1)
 		return ;
+
 	paddr_t *tmp = pm1; 
+	
 	for(int i = 0; i < 512; i++)
 	{
-		if(tmp[i] & 0x1 == 1)
+		//Doing a mask to check if the page is valid
+		if(PGT_IS_VALID(tmp[i]) && !PGT_IS_HUGE_PAGE(tmp[i])) 
 		{
 			printk("PML%d : 0x%lx\n",lvl,tmp[i]);
-			print_pgt((tmp[i] & PGT_ADRESS_MASK)>>12,--lvl);
+			print_pgt((PGT_ADRESS(tmp[i])),--lvl);
+		}
+		else if(PGT_IS_HUGE_PAGE(tmp[i])){
+			printk("Huge Page : 0x%lx\n",tmp[i]);
 		}
 	}
 	
@@ -50,15 +57,18 @@ void main_multiboot2(void *mb2)
 
 	setup_interrupts();                           /* setup a 64-bits IDT */
 	setup_tss();                                  /* setup a 64-bits TSS */
+	
 	interrupt_vector[INT_PF] = pgfault;      /* setup page fault handler */
-	print_pgt(store_cr3(), 4);
-	// map_page(&fake, 0x201000, new);
+	// print_pgt(store_cr3(), 4);
+	map_page(&fake, 0x201000, new);
+	// print_pgt(0x201000, 4);
+	
 	remap_pic();               /* remap PIC to avoid spurious interrupts */
 	disable_pic();                         /* disable anoying legacy PIC */
 	sti();     
 
 	load_tasks(mb2);                         /* load the tasks in memory */
-	run_tasks();                                 /* run the loaded tasks */
+	// run_tasks();                                 /* run the loaded tasks */
 
 	printk("\nGoodbye!\n");                                 /* fairewell */
 	die();                        /* the work is done, we can die now... */
