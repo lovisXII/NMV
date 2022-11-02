@@ -44,11 +44,17 @@ all: $(BIN)rackdoll.elf
 iso: $(BIN)rackdoll.iso
 
 boot: qemu
+boot_debug: qemu_debug
 
 qemu: $(BIN)rackdoll.iso
 	$(call cmd-print,  BOOT    $<)
 	$(Q)qemu-system-x86_64 -smp 1 -m 4G \
             -drive file=$<,format=raw -monitor stdio
+
+qemu_debug: $(BIN)rackdoll.iso
+	$(call cmd-print,  BOOT    $<) \
+	$(Q)qemu-system-x86_64 -nographic -smp 1 -m 4G \
+            -drive file=$<,format=raw -append root=/dev/sda console=ttyS0
 
 bochs: $(BIN)rackdoll.iso
 	$(call cmd-print,  BOOT    $<)

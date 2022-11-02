@@ -136,10 +136,25 @@ Il suffit donc de stocker l'adresse de l'ancienne PML2 dans PML3 d'index 1.
 # Question 3 :
 
 ```
-Donnez les adresses virtuelles de d´ebut et de fin du payload et du bss d’une tˆache, calcul´ees en fonction du
-mod`ele m´emoire et des champs d’une tˆache ctx.
+Donnez les adresses virtuelles de début et de fin du payload et du bss d’une tâche, calculées en fonction du
+modèle mémoire et des champs d’une tâche ctx.
+```
+* Adresse virtuelle de début du payload : ``ctx -> load_vaddr`` 
+* Adresse virtuelle de fin du payload : ``ctx -> load_vaddr + (load_end_paddr - load_paddr)``
+* Adresse virtuelle de début du .bss : ``ctx -> ctx -> load_vaddr + (load_end_paddr - load_paddr) + 8``
+* Adresse virtuelle de fin du .bss : ``ctx->bss_end_vaddr``
+
+# Question 4 : 
+```
+Implémentez la fonction void load task(struct task *ctx) qui initialise une nouvelle tâche en
+mémoire sans toutefois charger sa table des pages dans le CR3.
 ```
 
+# Question 5 : 
+```
+Implémentez la fonction void set task(struct task *ctx) qui charge une nouvelle tâche en mémoire
+en modifiant le CR3.
+```
 
 # Remarques :
 * https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html

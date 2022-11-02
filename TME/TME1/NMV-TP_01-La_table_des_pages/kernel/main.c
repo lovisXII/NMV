@@ -59,15 +59,15 @@ void main_multiboot2(void *mb2)
 	setup_tss();                                  /* setup a 64-bits TSS */
 	
 	interrupt_vector[INT_PF] = pgfault;      /* setup page fault handler */
-	// print_pgt(store_cr3(), 4);
+	
 	map_page(&fake, 0x201000, new);
 	// print_pgt(0x201000, 4);
 	
 	remap_pic();               /* remap PIC to avoid spurious interrupts */
 	disable_pic();                         /* disable anoying legacy PIC */
 	sti();     
-
 	load_tasks(mb2);                         /* load the tasks in memory */
+	print_pgt(store_cr3(), 4);
 	// run_tasks();                                 /* run the loaded tasks */
 
 	printk("\nGoodbye!\n");                                 /* fairewell */
