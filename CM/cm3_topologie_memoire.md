@@ -1,3 +1,4 @@
+**ATTENTION : ON NE DIT PAS CACHE L3 MAIS LLC (LAST LEVEL CACHE)**
 # Introduction
 
 Tout ce qu'on a vu jusqu'a maintenant c'est la base de la virtualisation.
@@ -60,9 +61,77 @@ Les modèles de cohérence ne sont pas universel.
 
 De nos jours **MOESI** et plus **MESI**.
 
+# Multicoeur et contention matérielle
+
+Problème des archis many : goulot d'étranglement sur le bus (cad le débit, pas la latence)
+**Coloration de cache : imposer que le coeur i ait accès à que 10% du cache LLC par ex -> ca revient à partager le cache en software**
+
+Pour palier au problème de contention, il suffit de partitionner la mémoire entre tous les clusters MAIS faire ca impose des problèmes de cohérence.\
+On split la ram sur chacun des clusters mais on veut quand même avoir un interconnect qui permet à tous les coeurs d'accéder à n'importe quel segment de ram.
+
+On parle de noeuds **NUMA** (non uniform memory access).
+
+**Noeud Numa ?**
+
+Dans le directory on va donc ajouter un bit pour donner une information sur le noeuds dans lequel se trouve la RAM que l'on veut accéder. **(page 20/30)**\
+Etat de la ligne dans MOESI est aussi dans l'index
+
+LE DIRECTORY C'EST UN TRUC A PART, FAIT PAS PARTI DE LA MMU ASKIP.
+
+Sur les serveurs, les cm permettent de ne pas exposé le NUMA ie de donner l'impression qu'il y a un seul noeud. Sur certains serveurs on peut avoir un algo qui se charge de répartir les charges au nv hardware et d'exposer à l'utilisateur un seul noeud (utilisateur = neoud), ie que l'ensemble de la ram est équivalent pour l'OS. C'est le matos qui va géré la répartition, on peut lui dire ce qu'on veut il le respectera pas.
+**-> C'est masqué**
+Le scheduleur peut migrer les threads sur différents noeuds pour équilibrer les accès.
+
+# Placement de données : l'interleaving
+
+La répartition de la charge mémoire est le facteur le plus important pour les performances NUMA
+-> L'idée c'est de répartir équitablement les données sur tous les noeuds pour équilibrer la charge.
+```c
+void worker ( void * area )
+{
+    do_some_stuff ( area );
+}
+void main ( void )
+{
+    char * area = mmap ( NULL , TASK * LEN , ...);
+    int i;
+    initialize_area ( area );
+    for (i = 0; i < TASK ; i ++)
+        launch_worker ( worker , area + i * LEN );
+    wait_workers ();
+    use_result ( area , TASK * LEN );
+}
+```
+-> dans cet exemple tous les threads vont utiliser l'ini du main, il faut utiliser NUMA 
+
+# Placement de données : first touch
+
+La tache qui alloue un espace en mémoire est souvent la tache qui utilise cet espace.\
+L'allocation mémoire est paresseuse, si un thread alloue la donnée, il n'y un mapping physique/virtuelle que la première fois que la donnée est utilisée.
+
+
+```c
+void worker ( void * area )
+{
+    initialize_area ( area );
+    do_some_stuff ( area );
+}
+void main ( void )
+{
+    char * area = mmap ( NULL , TASK * LEN , ...);
+    int i;
+    for (i = 0; i < TASK ; i ++)
+        launch_worker ( worker , area + i * LEN );
+    wait_workers ();
+    use_result ( area , TASK * LEN );
+}
+```
+-> dans cet exemple chaque thread va manipuler une zone mémoire, pas la peine d'exploiter NUMA 
+
 # Remarque
 
 * Comment sont adressés les tab à deux dimensions : On dirait qu'il ne manipule un seul tableau. Si on utilise tab[i][j] il va juste alloué i+j case.
 * OS vs kernel :
     * la glibc, le gestionnaire de fenetre, des services dans un micro noyaux -> fait parti de l'os mais pas du noyau. Un OS c'est juste une abstraction du matériel avec une API
     * noyau : tout le code qui s'exéute en mode s
+* loi d'ahmdal
