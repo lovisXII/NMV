@@ -121,9 +121,15 @@ Dans un type 2, l'os invité est en mode U donc il ne peut pas modifier la table
 On va utiliser ``mprotect`` pour protéger la table des pages invitées et générer un appel système. mprotect ne crash pas le programme, il redonne la main au handler.\
 
 
+# Interface matérielle et coût d'interception
 
+# Des émulateurs aux hyperviseurs
 
+Truc qui gère les interruptions (équivalent ICU):
+* pic (program interruptions control)
+* apic (advanced program interuption control)
 
+Implémentation d'un virtual controleur d'interruption en software.
 
 # Remarques
 
