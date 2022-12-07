@@ -48,3 +48,84 @@ Il n'y a pas toujours une correspondance 1:1 entre les jeux d'instructions. Parf
 Le fait qu'on ait pas une correspondance 1:1 sur les instructions rends difficile le chainage des blocs. En effet la taille du code peut varier et donc les adresses de retour ou les adresses de branchement peuvent changer.
 
 Il faut sauvegarder le contexte du cpu puis le restaurer en chaque basic block. 
+
+Les blocs résultats peuvent être mis en cache pour être réutilisé (dans le cas des boucles par exemple)
+
+Rosetta2 : apple passé de x86 à du arm -> leur pb c'était surtout comment émuler un jeu d'instruction.
+
+# VM java
+
+C'est un langage compilé maintenant. Au départ on compilait pas (langage interprété avant).
+Java fait de la compilation "just in time", ie on compile que quand on va se servir du code.
+
+Compiler peut être lent car il fait de l'optimisation. Le plus lent c'est pas de compiler, c'est de faire de l'optimisation.
+
+inline (mot clef c) : parfois fait par défaut par le compilo pour faire de l'opti
+
+Les objets sont alloués dans la pile en java
+
+# Virtualisation et adressage
+
+On a un virtual cpu qui va accéder à une virtual ram. La vram c'est rien d'autre que des varibles. Une adresse physique de la fausse ram est en faite stockée dans une adresse virtuelle du vrai cpu.
+
+Il y a un problème d'isolation entre une app dans la vm et dans la machine hote.
+
+On peut pas avoir une bijection entre le VMM et le vrai OS, la VMM ne peut pas imposer des adresses au vrai OS.
+
+Dans un système 32 bit, le kernerl est mappé sur le dernier giga (de 3 à 4).
+
+Donc si l'hyperviseur choisi les adresses de 3 à 4Go pour son OS ca va faire un conflit avec le vrai OS.
+
+## Dans moniteur de type 1
+
+adresse virtuelle : adresse dans la vm
+adresse physique = ram virtuelle
+adresse machine = vrai ram
+
+# Virtualisation et MMU logicielle
+
+__translate_guest_to_host : emule la ram
+
+Il faut une fausse MMU, qui traduire les adresses virtuelles du vcpu vers la vram. 
+
+1. Je récupère du code qui est une adresse virtuelle dans la vm
+2. 
+3. 
+4. 
+
+# Shadowing mémoire : principe
+
+La fausse MMU fonctionne comme la vrai MMU, on fait comme ca puisque l'OS invité ne sait pas qu'il est dans un VM. Il faut donc qu'il puisse fonctionner normalement.
+
+Le vcpu accède à la vMMU en envoyant une adresse GVA (guest virtual adress) qui va être traduite en GPA (guest physical adresse).\
+Cette GPA va être envoyée à une fonction de mapping dans l'hyperviseur qui va la transformer en HVA (host virtual adress) qui va ensuite être manipulée normalement par le cpu et envoyée à la MMU pour être traduite en HPA (host physical adress).
+
+CR0 : flag de fonctionnement, dont le mode du cpu 
+CR3 : adresse de la table des pages
+
+
+# Shadowing de table de pages : VMM de type 1
+
+On veut dans un premier temps accéder au vCR3. 
+Pour faire ca on doit traduire l'adresse du vCR3.
+Le vCR3 est à l'adresse 0x1000, cette adresse contient la valeur du vCR3.
+
+Protection en écriture de la table invitée pour générer une exception.
+
+Dans la slide : RW (read/write) & RO (read only) 
+
+# Shadowing de table de pages : VMM de type 2
+
+Dans un type 2, l'os invité est en mode U donc il ne peut pas modifier la table des pages.
+
+On va utiliser ``mprotect`` pour protéger la table des pages invitées et générer un appel système. mprotect ne crash pas le programme, il redonne la main au handler.\
+
+
+
+
+
+
+# Remarques
+
+* ServerX : X c'est la v2 de W, ca vient de windows à la base (W->X)
+* Wayland : Wayland est un protocole de serveur d'affichage, ainsi qu'une bibliothèque logicielle libre disponible sur les systèmes d'exploitation GNU/Linux. Wayland fournit un moyen pour les gestionnaires de fenêtres composite de communiquer directement avec les applications graphiques ainsi que le matériel vidéo.
