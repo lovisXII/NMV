@@ -131,7 +131,18 @@ Truc qui gère les interruptions (équivalent ICU):
 
 Implémentation d'un virtual controleur d'interruption en software.
 
+Pour faire des instructions privilégiés, on les laisse s'exécuter et ca va provoquer une exception que l'on va récupérer.
+
+Si on est en type 2 où on émule tout, on remplace les syscall par le code qui les traite. (Le remplacement est fait à la compilation)
+En type 1 on laisse les instructions s'exécuter et c'est le handler de l'hyperviseur qui récupère l'interruption (puisqu'il est en mode S) et qui va la traiter. 
+
+MAIS problème avec les instructions qui ne font pas la même chose en mode U et en mode S.
+
 # Remarques
 
 * ServerX : X c'est la v2 de W, ca vient de windows à la base (W->X)
 * Wayland : Wayland est un protocole de serveur d'affichage, ainsi qu'une bibliothèque logicielle libre disponible sur les systèmes d'exploitation GNU/Linux. Wayland fournit un moyen pour les gestionnaires de fenêtres composite de communiquer directement avec les applications graphiques ainsi que le matériel vidéo.
+* L'os fait de lisolation de esapce adressage masi suppose que tous les codes au dessus de lui sont des     programmes en mode u. Un hypervisuer fait isolation esapce adressage mais :
+    1. Il propose d'avoir du code au dessus qui croit être en mode u/s (ce que ne permet pas l'os puisque tout est en U)
+    2. Il isole de facon à partager des ressources physiques 
+    3. Permet d'emuler du matériel
