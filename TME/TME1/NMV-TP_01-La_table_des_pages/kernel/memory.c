@@ -6,7 +6,7 @@
 
 
 // #define DEBUG_map_page
-#define DEBUG_load_task
+// #define DEBUG_load_task
 
 
 extern __attribute__((noreturn)) void die(void);
@@ -71,7 +71,8 @@ void free_page(paddr_t addr)
  * +----------------------+ 0x00007fffffffffff
  * | User                 |
  * | (text + data + heap) |
- * +----------------------+ 0x2000000000
+ * +----------------------+ 
+ * 
  * | User                 |
  * | (stack)              |
  * +----------------------+ 0x40000000
@@ -103,10 +104,11 @@ void free_page(paddr_t addr)
 
 
 void map_page(struct task *ctx, vaddr_t vaddr, paddr_t paddr)
-// Allow to mapp the virtual adresse vaddr on the physical one paddr
-// ctx is the current task 
+// We're getting a task ctx and we want to mapp
+// the virtual vaddr on paddr in
+// its space addresses. 
 {
-	uint64_t *p = (uint64_t *) ctx->pgt; // first leval page table paddr
+	uint64_t *p = (uint64_t *) ctx->pgt; // we're getting the first level page table paddr
 	
 	#ifdef DEBUG_map_page
 	printk("Allocating virtual adresse : 0x%lx to physical adresse 0x%lx\n",vaddr,paddr);
@@ -115,49 +117,38 @@ void map_page(struct task *ctx, vaddr_t vaddr, paddr_t paddr)
 	paddr_t tmp;
 	
 	// We suppose that the physical of PML4 is correct
-	// We get the PML index of each PML from the vaddr
-
-	uint64_t pml4_index = PGT_PML4_INDEX(vaddr); 
-	uint64_t pml3_index = PGT_PML3_INDEX(vaddr); 
-	uint64_t pml2_index = PGT_PML2_INDEX(vaddr); 
-	uint64_t pml1_index = PGT_PML1_INDEX(vaddr); 
 		
 	#ifdef DEBUG_map_page
-	printk("PML4 : 0x%lx\n", pml4_index);
-	printk("PML3 : 0x%lx\n", pml3_index);
-	printk("PML2 : 0x%lx\n", pml2_index);
-	printk("PML1 : 0x%lx\n", pml1_index);
+	printk("PML4 : 0x%lx\n", PGT_PML4_INDEX(vaddr));
+	printk("PML3 : 0x%lx\n", PGT_PML3_INDEX(vaddr));
+	printk("PML2 : 0x%lx\n", PGT_PML2_INDEX(vaddr));
+	printk("PML1 : 0x%lx\n", PGT_PML1_INDEX(vaddr));
 	#endif
 
-	// We are going the check if the PMLi are allocated and if not
-	// we are going to do the allocation
-	
-	// p[PGT_PML4_INDEX(vaddr)] :
-
-	// p 						= adr PML4
-	// PGT_PML4_INDEX(vaddr) 	= index we want to access in PML4
-	// p[PGT_PML4_INDEX(vaddr)] = p + PGT_PML4_INDEX(vaddr)
+	// Checking if PML3 is valid
+	// If it's not valid, we need to allocate it :
 
 	if(!PGT_IS_VALID(p[PGT_PML4_INDEX(vaddr)])) 
-	// Checking if PML3 is valid
 	{
 			
 		#ifdef DEBUG_map_page
 		printk("PML3 not initialy valid, we do alloc it\n");
 		#endif
-		// We get a new page which is not yet used
+		// We're getting a new page which is not yet used
 		// We'll use the adress of this new page as starting point for PML3
 
 		tmp = alloc_page(); 
 		
 		// We initialize all the data in the page to 0
 		
+		// There is 512*8 bytes -> 4096 bytes
+		
 		memset((void*) tmp, 0, 4096) ;
 
 		
 		// We write the new page allocated inside the PML4
 
-		p[PGT_PML4_INDEX(vaddr)] |= (tmp | PGT_W_P_U_MASK); 
+		p[PGT_PML4_INDEX(vaddr)] = (tmp | PGT_W_P_U_MASK); 
 	}
 	else{
 		#ifdef DEBUG_map_page
@@ -170,7 +161,11 @@ void map_page(struct task *ctx, vaddr_t vaddr, paddr_t paddr)
 
 	p = (uint64_t *) PGT_ADRESS(p[PGT_PML4_INDEX(vaddr)]); 
 
-	if(!PGT_IS_VALID(p[PGT_PML3_INDEX(vaddr)])){	
+	// Checking if PML2 entry is valid, if not we
+	// need to allocate it
+
+	if(!PGT_IS_VALID(p[PGT_PML3_INDEX(vaddr)]))
+	{
 		#ifdef DEBUG_map_page		
 		printk("PML2 not initialy valid, we do alloc it\n");
 		#endif
@@ -186,7 +181,7 @@ void map_page(struct task *ctx, vaddr_t vaddr, paddr_t paddr)
 		#endif
 	}
 
-	// PML2 :
+	// Getting the adress of PML2
 
 	p = (uint64_t *) PGT_ADRESS(p[PGT_PML3_INDEX(vaddr)]); 
 		
@@ -196,7 +191,11 @@ void map_page(struct task *ctx, vaddr_t vaddr, paddr_t paddr)
 	printk("PML2 is : 0x%lx\n", p);
 	#endif
 
-	if(!PGT_IS_VALID(p[PGT_PML2_INDEX(vaddr)])){	
+	// Checking if PML1 entry is valid, if not we
+	// need to allocate it
+
+	if(!PGT_IS_VALID(p[PGT_PML2_INDEX(vaddr)]))
+	{	
 		#ifdef DEBUG_map_page
 		printk("PML1 not initialy valid, we do alloc it\n");
 		#endif
@@ -211,10 +210,16 @@ void map_page(struct task *ctx, vaddr_t vaddr, paddr_t paddr)
 		#endif
 	}
 
-	// PML1 :
+	// Getting the adress of PML1
+
 	p = (uint64_t *) PGT_ADRESS(p[PGT_PML2_INDEX(vaddr)]); 
 
-	if(!PGT_IS_VALID(p[PGT_PML1_INDEX(vaddr)])){	
+
+	// Checking if paddr entry is valid, if not we
+	// need to allocate it
+
+	if(!PGT_IS_VALID(p[PGT_PML1_INDEX(vaddr)]))
+	{	
 		#ifdef DEBUG_map_page
 		printk("Mapping virtual adresse 0x%lx on physical adresse 0x%lx\n",vaddr,paddr);
 		#endif
@@ -228,76 +233,70 @@ void map_page(struct task *ctx, vaddr_t vaddr, paddr_t paddr)
 		#endif
 	}
 }
+
 void load_task(struct task *ctx)
 // This function loads the code of a specific task inside the memory
+
 {
-	/*
-	1st step : We need to copy the adress of the PML2 of
-	the previus task into the new one.
-	Copying the pointer to PML2 will also allow to copy PML1 since
-	it is accessible from PML2.
-	*/
-	
-	paddr_t * pml4_adress = (uint64_t *) ctx->pgt;
-	paddr_t * pml3_adress ;
-	
-	paddr_t * current_cr3 = (uint64_t *)  store_cr3(); 	// PML4 base adress
-	
-	paddr_t *current_pml2 = PGT_ADRESS(((uint64_t *)  PGT_ADRESS(*((uint64_t *)  store_cr3())))[0]);
-
-	paddr_t	  tmp;
-
 	#ifdef DEBUG_load_task
-	printk("Inside load_task\n");
-	printk("PML4 address of the task is :0x%lx\n",pml4_adress);
-	
-	printk("Current CR3 is :0x%lx\n",store_cr3());
-	printk("PML3 base adress is : 0x%lx\n", PGT_ADRESS(*((uint64_t *)store_cr3())));
-	printk("PML2 base adress is : 0x%lx\n", current_pml2);
+		printk("Loading task\n");	
 	#endif
 
-	// Allocating new page for PML3 base adress
-	
-	tmp = alloc_page();
-	memset((void *)tmp, 0, 4096);
-	
-	*(pml4_adress) = (tmp | PGT_W_P_U_MASK);
-	
-	// Copying PML2 base adress into PML3 index 1
-
-	pml3_adress = pml4_adress[0];
-	pml3_adress[1] = *current_pml2;
-
-	#ifdef DEBUG_load_task
-		printk("PML4 index 0 is : 0x%lx\n",pml4_adress[0]);
-		printk("PML3 base size is : 0x%lx\n",pml3_adress);
-		printk("PML3[1] is : 0x%lx\n",pml3_adress[1]);
-	#endif
 	/*
-	2nd step : We need to translate the adress of the task.
-	We want to translate the payload and the bss segment.
-	The .bss segment is contigue with the payload in virtual addresses.
+	1st step : We need to copy PML3[1] into the new PML3[1]
 	*/
 
-	int i = 0;
-	int end_alloc = ctx->load_end_paddr-ctx->load_paddr;
+	paddr_t *PML4;	
+	paddr_t *PML3;	
+
+	// Setting up cr3 value for the new task
+	
+	// ctx->pgt = alloc_page();
+	// memset((void *)ctx->pgt,0,4096);
+	PML4 = ctx->pgt;
+	
+	// Allocating PML3 :
+
+	PML3 = alloc_page();
+	memset((void *)PML3, 0, 4096);
+
+	// Setting up PML4[0]
+
+	PML4[0] = (paddr_t) PML3 | PGT_W_P_U_MASK ;
+
+	// Getting the right PML3[1] :
+
+	paddr_t *current_cr3 = store_cr3();
+	paddr_t *ptr_current_cr3 = PGT_ADRESS(current_cr3[0]); 
+	PML3[1] = ptr_current_cr3[1] ;
+
+
 	#ifdef DEBUG_load_task
-	// printk("End of payload in virtual is supposed to be : %d\n", ctx->load_vaddr + end_alloc);
-	// printk(".bss end is : %d\n", ctx->bss_end_vaddr);
+	printk("[Debug] PML4 base address is : 0x%lx\n", PML4);
+	printk("[Debug] PML3 base address is : 0x%lx\n", PML3);
+	printk("[Debug] cr3 for previus task was : 0x%lx\n", current_cr3);
 	#endif
-	for(int i = 0; i < ctx->bss_end_vaddr ; i+=8)
+
+
+	/*
+	2nd step : 
+	Mapping virtual address for the payload and the bss.
+	Since both are contigus it's pretty easy to do the mapping. 
+	*/
+
+	#ifdef DEBUG_load_task
+	printk("[Debug] load_vaddr : 0x%lx\n", ctx->load_vaddr);
+	printk("[Debug] load_paddr : 0x%lx\n", ctx->load_paddr);
+	#endif
+	for(uint64_t i = 0; ctx->load_vaddr + i < ctx->bss_end_vaddr; i+=4096)
 	{
-		// if(i <= end_alloc)
-			// map_page(ctx, ctx->load_vaddr+i, ctx->load_paddr+i); 
-		// else
-		// 	map_page(ctx, ctx->load_vaddr+i, alloc_page());
-	}
-		
-	
+		map_page(ctx, ctx->load_vaddr + i,ctx->load_paddr + i);
+	}	
 }
 
 void set_task(struct task *ctx)
 {
+	load_cr3(ctx->pgt);
 }
 
 void mmap(struct task *ctx, vaddr_t vaddr)

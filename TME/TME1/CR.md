@@ -36,11 +36,13 @@ On trouve ensuite le bit PS qui indique si la page pointée est une ``huge page`
 # Question 3 : 
 
 ```
-Dans kernel/main.c, programmez et testez la nouvelle fonction print_pgt. Vous testerez votre nouvelle fonction en l’appellant depuis la fonction main multiboot2 située dans le fichier kernel/main.c juste avant le chargement des tâches utilisateur. Pour cela vous pouvez utiliser la fonction uint64 t
-store cr3(void) qui retourne le contenu du registre CR3.
-Si votre fonction d’affichage fonctionne correctement, vous devriez observer une table des pages avec la
-structure indiquée dans l’annexe de ce sujet.
+Dans kernel/main.c, programmez et testez la nouvelle fonction print_pgt. Vous testerez votre nouvelle fonction en l’appellant depuis la fonction main multiboot2 située dans le fichier kernel/main.c juste avant le chargement des tâches utilisateur. Pour cela vous pouvez utiliser la fonction uint64_t store cr3(void) qui retourne le contenu du registre CR3.
+Si votre fonction d’affichage fonctionne correctement, vous devriez observer une table des pages avec la structure indiquée dans l’annexe de ce sujet.
 ```
+
+On peut en effet bien visualiser la table des pages qui s'affiche correctement. Pour vérifier que tout fonctionne bien, j'ai utilisé la commande ``xp\512g address`` quand qmu, qui permet de visualiser 512 adresses à partir de l'adresse ``address``. Ainsi si j'ai en entrée une adresse qui correspond au début de la table des pages, je vais pouvoir visualiser cette dernière dans son entièreté.
+
+On fera attention à ne pas rappeler la fonction dans le cas où l'on aurait une Huge page, en effet, peut importe le niveau d'une huge page cette dernière est terminale.
 
 # Exercice 2 :
 
@@ -74,6 +76,7 @@ indiquée par ctx->pgt.
 Pour cet exercice, n’hésitez pas à tester très régulièrement votre fonction à chaque étape de son implémentation.
 On pourra pour cela utiliser le morceau de code suivant depuis kernel/main.c :
 ```
+
 ```c
 struct task fake;
 paddr t new;
@@ -89,11 +92,19 @@ l’aide du moniteur de Qemu avec la commande x/8g 0x201000.
 ```
 
 Pour vérifier que la fonction est correcte on procède comme suit :
+* L'adresse virtuelle que l'on veut mapper vaut ``0x201000``, ce qui peut dire que :
+    * L'index de PML4 vaut 0
+    * L'index de PML3 vaut 0
+    * L'index de PML2 vaut 1
+    * L'index de PML1 vaut 1
+L'adresse virtuelle dans donc faire le "chemin" PML4[0]->PML3[0]->PML2[1]->PML[1]
 * l'adresse de base de la PML4 est ``0x104000``
-* Le contenue de l'adresse mémoire ``0x104000`` est ``0x105027``, qui correspond à l'adresse de base de la PML3 ``0x105027`` (on ignore les 12 bits de poids faible)
+* Le contenue de l'adresse mémoire ``0x104000`` est ``0x105027``, qui correspond à l'adresse de base de la PML3 ``0x105000`` (on ignore les 12 bits de poids faible)
 * Le contenue de l'adresse mémoire ``0x105000`` est ``0x106027``, qui correspond à l'adresse de base de la PML2 ``0x106000``
 * Le contenue de l'adresse mémoire ``0x106008``(base + index) est ``0x10701b``, qui correspond à l'adresse de base de la PML1 ``0x107000``
-* Le contenue de l'adresse mémoire ``0x107008`` (base+index) est ``0x10d011``, qui correspond bien à la traduction de l'adresse physique initiale
+* Le contenue de l'adresse mémoire ``0x107008``(base + index) est ``0x10d011``, qui correspond bien à la traduction de l'adresse physique initiale
+
+![plot](image.png)
 
 # Exercice 3
 # Question 1
@@ -117,6 +128,7 @@ virtuelle ctx->bss end vaddr.
 On rappelle que le bss est une zone qui doit être initialisée à zero au lancement d’un tâche. Il est possible
 que certaines tâches aient un bss vide.
 ```
+
 Lorsque l'on commute de tache ou que l'on créer une nouvelle tache, on va devoir changer la valeur du CR3. Or changer la valeur du CR3 implique de perdre l'ancienne table des pages.\
 Néamoins les données du système d'exploitation sont communes à chaque tache, en effet l'OS stocke tout un tas de données (variables globales, locket, variables d'environnement...etc) qu'il faut conserver et garder identique pour chaque programme.
 
@@ -130,8 +142,8 @@ Le kernel est donc compris entre ``0x0`` et ``0x40000000``. Or:
 0x40000000 =    01          | 00 0000 000 | 0 0000 0000 | 0000 0000 0000
                 INDEX PML3  | INDEX PML2  | INDEX PML1  | OFFSET                                     
 ```
-Cela signifie que toutes les adresses virtuelles avec un index quelconque pour PML2 et PML1, un index de 1 pour la PML3 et un index nul pour PML4 pointent vers la même zone mémoire, à savoir la zone kernel.
-Il suffit donc de stocker l'adresse de l'ancienne PML2 dans PML3 d'index 1. 
+
+Il suffit donc de copier PML3[1] dans la nouvelle table des pages pour conserver les données de la zone kernel.
 
 # Question 3 :
 
@@ -139,9 +151,14 @@ Il suffit donc de stocker l'adresse de l'ancienne PML2 dans PML3 d'index 1.
 Donnez les adresses virtuelles de début et de fin du payload et du bss d’une tâche, calculées en fonction du
 modèle mémoire et des champs d’une tâche ctx.
 ```
+Le payload est la partie ded la mémoire qui contient le code et les données. On a : 
+
 * Adresse virtuelle de début du payload : ``ctx -> load_vaddr`` 
 * Adresse virtuelle de fin du payload : ``ctx -> load_vaddr + (load_end_paddr - load_paddr)``
-* Adresse virtuelle de début du .bss : ``ctx -> ctx -> load_vaddr + (load_end_paddr - load_paddr) + 8``
+
+Le bss (block starting symbol) est un segment mémoire qui contient les variables statiquement allouées qui sont déclarée mais pas initialiser. On a :
+
+* Adresse virtuelle de début du .bss : ``ctx -> load_vaddr + (load_end_paddr - load_paddr) + 8``
 * Adresse virtuelle de fin du .bss : ``ctx->bss_end_vaddr``
 
 # Question 4 : 
@@ -150,10 +167,79 @@ Implémentez la fonction void load task(struct task *ctx) qui initialise une nou
 mémoire sans toutefois charger sa table des pages dans le CR3.
 ```
 
+On s'occupe dans un premier temps de copier PML3, pour tester la fonction j'ai modifié le main.c de facon à avoir :
+```c
+// Custom
+	struct task* fake_task;
+	paddr_t page2 = alloc_page();
+	fake_task->pgt = page2;
+
+	struct task os;
+	os.pgt = store_cr3();
+	paddr_t random_adr = alloc_page();
+	vaddr_t vadr_os = 0x40000000;
+// End custom
+
+map_page(&os, vadr_os, random_adr);
+
+load_task(fake_task);
+printk("\n\nPrinting fake_test to check if copy of kernel is ok\n\n");
+print_pgt(fake_task->pgt, 4);
+
+```
+
+L'idée est la suivante :\
+J'ai besoin que PML3[1] soit mapper pour une tache quelconque afin d'avoir une entrée non nulle.\
+Pour faire ca je vais donc initialiser une fausse tache que j'ai appelé ``os``. Je vais mapper l'adresse ``0x40000000`` dans cette tache à une adresse physique virtuelle random. L'idée c'est donc de généré une entrée dans PML3[1], ``0x40000000`` correspond à un index de 1 sur la PML3.
+
+Ensuite je génère une fausse tache que je vais loader avec la fonction ``load_task()`` et je vais vérifier que l'entrée de la PML3[1] est bien copiée.
+
+![plot](load_task_kernel_copy.png)
+
+On peut voir sur l'image ci dessus que l'on a bien la table des pages qui a été correctement recopiée après l'appelle de la fonction load_task().
+
 # Question 5 : 
 ```
 Implémentez la fonction void set task(struct task *ctx) qui charge une nouvelle tâche en mémoire
 en modifiant le CR3.
+```
+cf code.
+
+# Exercice 4 :
+
+
+
+**Question 1 :**
+
+```
+Implémentez la fonction void mmap(struct task *ctx, vaddr t vaddr) qui alloue une page phy-
+sique, l’initialise à zero et la mappe à l’adresse virtuelle donnée pour la tâche donnée.
+```
+
+**Question 2 :**
+
+```
+Á cette étape du TP, l’exécution de Rackdoll doit afficher sur le moniteur qu’une faute de page se produit
+à l’adresse virtuelle 0x1ffffffff8. Étant donné le modèle mémoire, indiquez ce qui provoque la faute de
+page. D’après vous, cette faute est-elle causée par un accès mémoire légitime ?
+```
+
+**Question 3 :**
+
+```
+D’après le modèle mémoire de Rackdoll, la pile d’une tâche utilisateur a une taille de 127 GiB, c’est à dire
+bien plus que la mémoire physique disponible dans la machine virtuelle. La pile est donc allouée de manière
+paresseuse. Expliquez en quoi consiste l’allocation paresseuse.
+```
+
+**Question 4 :**
+
+```
+Implémentez la fonction void pgfault(struct interrupt context *ctx) qui traite une faute de
+page dont le contexte est stocké dans ctx et où l’adresse qui a causé la faute est stockée dans le re-
+gistre CR2 accessible via la fonction uint64 t store cr2(void). Rappellez-vous que les seules fautes
+de page légitimes sont celles de la pile. Toute faute à une adresse en dehors de la pile doit causer unefaute de segmentation de la tâche courante (vous pouvez utiliser la fonction void exit task(struct
+interrupt context *ctx) qui termine la tâche courante).
 ```
 
 # Remarques :

@@ -86,6 +86,8 @@ static inline uint64_t store_cr2(void)
 
 
 static inline void load_cr3(uint64_t cr3)
+// movq mm, mm/m64 is moving mm/m64 to mm
+// This function is moving cr3 value to parameter cr3
 {
 	asm volatile ("movq %0, %%cr3" : : "a" (cr3));
 }
