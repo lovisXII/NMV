@@ -30,7 +30,7 @@ void print_pgt(paddr_t pm1, uint8_t lvl)
 	if(lvl < 1)
 		return ;
 
-	uint64_t *tmp = pm1; 
+	uint64_t *tmp = (uint64_t*) pm1; 
 	
 	for(int i = 0; i < 512; i++)
 	{
@@ -59,7 +59,7 @@ void main_multiboot2(void *mb2)
 
 	#ifdef TEST_CUSTOM
 		struct task* fake_task;
-		// cr3 will be defined by load_task function
+		fake_task->pgt = alloc_page();
 		fake_task->load_paddr=0x210000;
 
 		fake_task->load_vaddr=0x128000;
@@ -119,9 +119,11 @@ void main_multiboot2(void *mb2)
 	#ifdef TEST_CUSTOM
 		load_task(fake_task);
 		printk("fake task cr3 is :0x%lx\n",fake_task->pgt);
+		printk("Current CR3 is :0x%lx\n",store_cr3());
+		// die();
 		set_task(fake_task);
 		printk("\n\nPrinting fake_test to check if copy of kernel is ok\n\n");
-		print_pgt(fake_task->pgt, 4);
+		// print_pgt(fake_task->pgt, 4);
 	#endif
 
 	#ifndef TEST_CUSTOM 

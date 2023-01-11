@@ -249,10 +249,6 @@ void load_task(struct task *ctx)
 	paddr_t *PML4;	
 	paddr_t *PML3;	
 
-	// Setting up cr3 value for the new task
-	
-	// ctx->pgt = alloc_page();
-	// memset((void *)ctx->pgt,0,4096);
 	PML4 = ctx->pgt;
 	
 	// Allocating PML3 :

@@ -8,7 +8,7 @@ LDFLAGS := -lpthread
 
 experiments := cacheline cachesize cacheway siblings
 cacheline-param := 8 12 16 32 48 64 80 96 128
-cachesize-param := 1
+cachesize-param := 1024 2048 4096 8192 16384 32768 65536 
 cacheway-param  := 1
 siblings-param  := 1
 

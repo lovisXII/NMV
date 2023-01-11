@@ -9,6 +9,13 @@
 #define WARMUP             10000
 #define PRECISION          1000000
 
+#ifndef PARAM
+#  define PARAM            1024
+#endif
+
+
+#define NBR_ACCESS 1000000
+#define CACHE_SIZE PARAM 
 
 static inline char *alloc(void)
 {
@@ -27,7 +34,24 @@ static inline char *alloc(void)
 
 static inline uint64_t detect(char *mem)
 {
-	return 0;
+	// WARMUP : allow to cancel the MISS
+	// since its load the cache with the data we want
+	// If data are too big then it will still miss
+	// when the 2nd loop start cause it will erase data
+
+	for(size_t i = 0; i < NBR_ACCESS; i++)
+		for(size_t j = 0; j < CACHE_SIZE; j++)
+			writemem(mem + j);
+
+	uint64_t start = now() ;
+
+	for(size_t i = 0; i < NBR_ACCESS; i++)
+		for(size_t j = 0; j < CACHE_SIZE; j++)
+			writemem(mem + j);
+	
+	uint64_t end = now() ;
+
+	return (end - start)/NBR_ACCESS;
 }
 
 int main(void)
