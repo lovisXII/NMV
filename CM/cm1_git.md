@@ -152,7 +152,7 @@ Git utilise 4 types d'objets :
 
 ## Def :
 On appelle aussi blob, un blob qui stocke le contenu d'un fichier :
-* composé de "blob <taille du contenu \0<contenu>>"
+* composé de "blob <taille du contenu \0<contenu>"
 ...etc
 
 ```

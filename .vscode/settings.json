@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "task.h": "c",
-        "mask_and_coo.h": "c"
+        "mask_and_coo.h": "c",
+        "HELP.C": "cpp"
     }
 }
