@@ -38,7 +38,7 @@ La branche à partir de laquelle la sous-branche est créée est appelée la bra
 
 * merge :
 On appelle merge toute version ayant un degré sortant supérieur à 1. Degré sortant > 1 signifie qu'on a deux commits qui vont sortir d'un seul.
-![plot](merge.png)
+![plot](images/merge.png)
 
 * working tree/working directory :\
 In the context of Git, a **working tree**, also known as a **working directory**, is the set of files and directories that are being tracked by Git in the local repository on a developer's computer. It is the place where developers can view and make changes to the files in the repository.
@@ -129,7 +129,7 @@ git hash-object foo.txt
 Stocke la liste des fichiers d'un répertoire. C'est un ensemble de pointeur vers des blobs et d'autres trees.
 Un tree associe un nom de fichier à chacun des blobs fichiers/ blobs tree.
 
-![plot](blob_tree.png)
+![plot](images/blob_tree.png)
 
 On voit bien dans la photo que le blob tree contient des pointeurs vers les blobs fichiers, et vers des blobs tree.
 
@@ -201,7 +201,7 @@ echo "tutu" >> dir/bar.txt
 git add dir/bar.txt
 git commit -m "Modif dir/bar.txt"
 ```
-![plot](test.png)
+![plot](images/test.png)
 
 # Les branches
 
@@ -222,7 +222,7 @@ When you create a new branch, Git creates a new reference pointer that points to
 
 ### exemple :
 
-![plot](branche.png)
+![plot](images/branche.png)
 
 # Les merges
 ## fast forward
@@ -234,16 +234,16 @@ git branch -d maBranche # on supprime b1
 ```
 
 Dans le cas ci dessous, on créer une branche à partir du commit a4407 et l'on commit dessus sans rien commiter sur le main. Quand on va faire le git merge ca va juste remonter le pointeur du main sur le dernier commit de la branche maBranche.
-![plot](merge_commit.png)
+![plot](images/merge_commit.png)
 
 ## Merge deux branches distinctes
 
 On parrt de la situation ci dessous, on a des commit sur le main et sur la branche maBranche, il va donc falloir merge correctement maBranche sur le main.
 
-![plot](conflit.png)
+![plot](images/conflit.png)
 
 On va commiter à plusieurs reprise sur maBranche, créant ainsi l'historique suivant :
-![plot](merge_2.png)
+![plot](images/merge_2.png)
 
 Maintenant on veut merge maBranche sur le main, pour faire ca on va faire :
 ```sh
@@ -253,7 +253,7 @@ git branch -d maBranche # on supprime la branche
 ```
 
 Ca va créer un commit de merge 57669 et ca va donner l'historique suivant :
-![plot](merge_3.png)
+![plot](images/merge_3.png)
 
 # Les rebases
 
@@ -261,7 +261,7 @@ Un merge, au contraire d'un rebase ne conserve pas l'historique de la branche, l
 
 Le rebase au contraire va placer les commandes de la branche sur le branche sur laquelle on merge.
 
-![plot](git_vs_rebase.png)
+![plot](images/git_vs_rebase.png)
 
 ```sh
 git rebase --onto main branche1 branche 2
@@ -318,7 +318,7 @@ git revet HEAD^
 * git reset soft :
     * restore la référence du commit
 
-![plot](reset.png)
+![plot](images/reset.png)
 
 # Comparaison
 

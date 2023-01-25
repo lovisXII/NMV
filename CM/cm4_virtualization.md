@@ -138,6 +138,28 @@ En type 1 on laisse les instructions s'exécuter et c'est le handler de l'hyperv
 
 MAIS problème avec les instructions qui ne font pas la même chose en mode U et en mode S.
 
+On trouve le mode HOST et le mode GUEST dans les CPU modernes, ca permet de faire de la virtualization.
+
+Au démarrage on est en mode HOST, pour passer en mode GUEST on va avoir un appel à ``vmrun``. Cette instruction va sauvegarder l'hote dans la mémoire.
+Ensuite on va charger les registres de la VM (qui était en mémoire) et on va passer en mode GUEST.
+
+Donc en gros y a deux trucs qui donne le mode ``cpl`` et ``mode``. On a donc mode U et S en mode HOST et mode U et S en GUEST.
+
+On rappelle que :
+* addresse virtuelle
+* adresse physique
+* adresse machine
+
+On a cr3 (fausse ram) et ncr3 (vraie ram) qui permettent de pointer sur la table virtuelle et la table physique. Nulle part dans le noyau on modifie ncr3, en faite le noyau modifie tjrs cr3 et c'est en fonction du mode que le CPU va écrire dans ncr3 ou cr3.
+
+C'est la MMU qui gère en faite la traduction d'adresse virtuelle -> physique et physique -> machine.
+En gros elle recoit adresse virtuelle du cpu, elle traduit ca en adresse physique en regardant la valeur du cr3. Ensuite elle regarde le mode et si ce mode est à GUEST, alors elle va traduire l'adresse physique en adresse machine en utilisant l'adresse contenue dans ncr3.
+
+Ce qu'on a fait en logiciel avec la shadow table est en faite géré directement par la MMU physique.
+
+
+
+# **A LEXAM : SAVOIR CALCULER L'ADRESSE VIRTUELLE QUI CORRESPOND A UNE ADRESSE PHYSIQUE**
 # Remarques
 
 * ServerX : X c'est la v2 de W, ca vient de windows à la base (W->X)
@@ -146,3 +168,6 @@ MAIS problème avec les instructions qui ne font pas la même chose en mode U et
     1. Il propose d'avoir du code au dessus qui croit être en mode u/s (ce que ne permet pas l'os puisque tout est en U)
     2. Il isole de facon à partager des ressources physiques 
     3. Permet d'emuler du matériel
+* L'hyperthreading permet de gagner 30% de perf, c'est l'augmentation de la taille du pipeline qui a rendu nécessaire l'utilisation de l'hyperthreading.
+* Quel est le 1er processus en mode U : c'est init
+* démons = tous les programmes qui tournent en fond (ssh...etc)
