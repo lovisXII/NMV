@@ -246,7 +246,7 @@ En faite quand on fait un malloc gigantesque ca sert a rien psq c'est alloué qu
 Ce mécananisme ou on appelle le kernel et c'est lui qui autorise l'allocation permet d'éviter d'allouer n'importe quoi.
 
 
-**Mémoire virtuelle et allouée pdt appel de mmap tandis que la mémoire physique est alloué quand la page est utilisée.**
+**Mémoire virtuelle est allouée pdt appel de mmap tandis que la mémoire physique est alloué quand la page est utilisée.**
 
 # Fork utilise même type de mécanisme que mmap
 

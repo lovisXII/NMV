@@ -118,6 +118,13 @@ Sur l'exemple ci dessus, on veut lire l'adresse ``0x04010``, l'index vaut ``0x04
 
 On va donc d'abord accéder à la bonne page, pour ce faire on accède à la 4ème case à partir de l'adresse de CR3, on obtient 0x3000 comme adresse. On ajoute l'offset de départ, ce qui nous donne 0x3010 comme adresse.
 
+![plot](images/table_pages.png)
+
+Sur l'exemple ci dessus, on veut lire écrire l'adresse physique ``0x1010``.
+On cherche donc l'index qui permettrait d'accéder à la table d'index 0x1. Il s'avère que cet index c'est 0x3.
+
+On envoie ``0x3000`` qui va être traduit en ``0x1000``. Mais on veut accéder à 0x1010, il suffit donc d'ajouter le bon offset, ce qui donne ``0x3010``.
+
 ### **Structure réelle de la table des pages**
 
 Structure creuses, 4 niveaux de tables des pages (PML4, PML3, PML2, PML1).
