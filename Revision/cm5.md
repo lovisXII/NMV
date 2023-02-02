@@ -357,4 +357,5 @@ Inconvéniants :
 
 # Multi coeur 
 
-Depuis (Linux 2.6) chaque CPU possède sa struct rq, ordonnancée localement et protégé par un spin lock
+Depuis (Linux 2.6) chaque CPU possède sa struct rq, ordonnancée localement et protégé par un spin lock.
+
