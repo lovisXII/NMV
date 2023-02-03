@@ -95,4 +95,57 @@ Les instructions privilégiées sont traduitent par des appels de fonctions d'é
 
 # Virtualisation de ressources
 
+Le système invité accède à sa propre mémoire, il a donc besoin d'avoir une correspondance mémoire virtuelle <--> mémoire physique.
+
+![plot](images/virtua_adresses.png)
+
+Pour les VMM de type 2, on a donc les types d'adresse suivantes :
+* GVA : guest virtual addresses
+* GPA : guest physical addresses
+* HVA : host virtual addresses
+* HPA : host physical addresses
+
+Pour les VMM de type 1, on ne distingue pas les (GPA) et les (HVA), on utilise plutôt la terminologie virtuelle/physique/machine.
+
+La VMM utilise une structure logicielle quelconque pour faire l'association `GPA -> HVA`.
+La MMU physique utilise la table des pages du système hôte pour faire la traduction `HVA -> HPA`.
+
+Le système invité attend que la MMU fasse la traduction `GVA -> GPA` :
+* Solution : émuler l'action de la MMU à chaque accès mémoire invité
+* Le VMM parcours la PTE en utilisant un CR3 virtuel
+
+![plot](images/shadowing.png)
+
+Just a quick exercice 'bout shadowing :
+
+![plot](images/exercice_shadowing.png)
+
+On regarde la table des pages OS invité, la case mémoire remplie est à l'index 1, donc l'adresse virtuelle vaut :
+* 0x1000
+Cette adresse est traduit en adresse physique, 0x23000, puis cette adresse est traduite en 0x17000.
+
+L'invité veut faire un mapping VA = 0x4000 -> PA = 0x14000 :
+* Pour intercepter l'écriture le VMM protège la table invitée en écriture
+* Le VMM est averti de cette tentative d'écriture par une page fault
+* Le VMM associe l'adresse virtuelle fautive à l'adresse machine de son choix
+* Le VMM modifie la table des pages invité pour écrire l'adresse physique
+
+Ca veut dire que le système invité ne peut pas directement écrire dans la table des pages invité, ca passe par le VMM et c'est lui qui réalise l'écriture.
+
+Exemple avec VMM type 1 :
+![plot](images/shadowing_vmm1.png)
+
+Pour les VMM de type 2, c'est un peu différent :
+
+![plot](images/shadowing_vmm2.png)
+
+* L'hote et l'invité partagent le même espace virtuel :
+    * l'invité peut utiliser une VA déjà atttribuée à l'hôte
+    * les GVA et les HVA sont traitées de la même manière par la MMU physique
+
+* différentes solutions pour isoler l'invité 
+    * utiliser un espace virtuel dédié pour l'invité
+    * émuler tous les accès à une zone réservée à l'hote
+    * déplacer l'hôte en cas de conflit 
+    
 # Virtualisation comme isolation
