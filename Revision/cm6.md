@@ -105,6 +105,7 @@ Pour les VMM de type 2, on a donc les types d'adresse suivantes :
 * HVA : host virtual addresses
 * HPA : host physical addresses
 
+
 Pour les VMM de type 1, on ne distingue pas les (GPA) et les (HVA), on utilise plutôt la terminologie virtuelle/physique/machine.
 
 La VMM utilise une structure logicielle quelconque pour faire l'association `GPA -> HVA`.
@@ -114,17 +115,19 @@ Le système invité attend que la MMU fasse la traduction `GVA -> GPA` :
 * Solution : émuler l'action de la MMU à chaque accès mémoire invité
 * Le VMM parcours la PTE en utilisant un CR3 virtuel
 
+Donc on part d'un vCR3, qui donne accès a une vMMU qui va permettre de faire la traduction `GVA` -> `GPA`. 
+
 ![plot](images/shadowing.png)
 
-Just a quick exercice 'bout shadowing :
+Le problème c'est que faire ca c'est super couteux, donc on va plutôt essayer d'utiliser la MMU physique pour faire directement `GVA` -> `HPA`. Mais on ne peut pas laisser l'invité accéder directement la MMU physique. On fait comme ca du coup :
 
 ![plot](images/exercice_shadowing.png)
 
-On regarde la table des pages OS invité, la case mémoire remplie est à l'index 1, donc l'adresse virtuelle vaut :
-* 0x1000
-Cette adresse est traduit en adresse physique, 0x23000, puis cette adresse est traduite en 0x17000.
+Le programme veut accéder à la case qui contient 0x23000 qui est en faite mappée sur 0x17000.
 
-L'invité veut faire un mapping VA = 0x4000 -> PA = 0x14000 :
+Donc le guest envoie 0x1000 (GVA) pour accéder à 0x23000 (GPA) qui est traduit en 0x17000 (HPA)
+
+On imagine maintenant que l'invité veut faire un mapping VA = 0x4000 -> PA = 0x14000 :
 * Pour intercepter l'écriture le VMM protège la table invitée en écriture
 * Le VMM est averti de cette tentative d'écriture par une page fault
 * Le VMM associe l'adresse virtuelle fautive à l'adresse machine de son choix
@@ -147,5 +150,155 @@ Pour les VMM de type 2, c'est un peu différent :
     * utiliser un espace virtuel dédié pour l'invité
     * émuler tous les accès à une zone réservée à l'hote
     * déplacer l'hôte en cas de conflit 
-    
+## **Résumé**
+
+* Le système invité définit une correspondance GVA et GPA
+* Le système hôte utilise la MMU pour associer HVA et HPA
+* La VMM assure une traduction GVA vers HPA sans collision :
+    * entre les différents espaces virtuels invités
+    * entre les espaces virtuels invités et l'espace virtuel hôte
+* La première méthode est la traduction logicielle
+    * La VMM émule la traduction via une MMU logicielle
+    * Les GPA sont traduites une seconde fois pour éviter les collisions
+* La deuxième méthode est la shadow table
+    * Le VMM maj la table des pages hote en fonction des actions de l'invité -> MMU traduit GVA en HPA
+    * Le VMM utilise une combinaisons d'autres méthodes pour éviter collision hote/invité.
+
+# Paravirtualisation et interface matérielle
+
+shadowing de PT évite traduction logicielle des adresses -> accès mémoire éfficace mais :
+* surcout pour tte écriture dans PT
+* surcout pour tte modification du vCR3
+
+Le shadowing est possible pour du matériel configuré par l'hôte mais dont l'exécution est automatique -> MMU, ICU...etc
+
+Impossible pour le matériel aux actions commandées explicitement par l'hote -> controleur d'E/S, instructions privilégiées...etc
+
+
+Le communication entre invité et VMM est complexe :
+* Interface machine complexe
+* Pilotes complexes
+
+Complexité a un impact sur les performances
+
+Solution -> supprimer l'interface machine virtuelle :
+* modifier l'invité pour faire directement appel au VMM
+* L'invité sait qu'il est virtualisé
+* Communication par hypercall
+
+Pour un invité sans paravirtualisation 
+* VMM doit émuler chaque instruction privilégiée
+
+Un système paravirtualisé utilise un unique hypercall à la place :
+* Peut être n'importe quelle inst que le VMM intercepte et qui ne correspond à aucune action légitime pour le matériel
+* La VMM discrimine les hypercalls des fautes avec une ABI prédéfinie
+* Si c'est un hypercall, le VMM décode selon l'ABI définie et traite la demande si elle est légitime
+
+## Résumé paravirtualisation
+
+```
+La paravirtualisation est une technique de virtualisation qui implique la modification du système d'exploitation invité pour fonctionner en collaboration avec l'hyperviseur. Au lieu d'émuler complètement la machine physique pour chaque machine virtuelle, les invités sont modifiés pour être conscients de la virtualisation et communiquer directement avec l'hyperviseur.
+```
+
+Les interfaces matérielles complexes sont remplacées par des interfaces paravirtualisées basées sur les hypercalls :
+* hypercall simple et rapide à décoder par le VMM
+* pilotes invités paravirtualisés simples et efficaces
+* système invité est modifié pour s'exécuter dans un VMM donné
+
 # Virtualisation comme isolation
+
+## Des émulateurs aux hyperviseurs
+
+Rappel objectif emulation : 
+* simuler nveau matos
+* porter logiciel sur différentes archi
+* partage ressources -> exécution simultannée Windows/Linux
+* Isolation de services -> exécution simultannée de plusieurs Linux
+
+Dans cas où on veut émuler une VM semblable à machine physique (meme jeu instruction) : 
+* pas besoin de traduire instructions non privilégiées
+* besoin intercepter sauts et instructions privi
+
+### **Exécution directe du code invité** 
+
+Dynamic block + rapide quand archi source et cible sont les même.
+Blocs de code non privilégié ont juste un surcout de chainage. Surcout disparait quand tous les blocs sont traduits. **Traduction inutile pour code non privi**.
+
+* Après phase initialisation hyperviseur se branche directement sur le code du système invité en mode user
+
+* Instructions non privilégiées sont exécutée normalement, isolation mémoire assurée via pagination.
+
+`Isolation par pagination` = Chaque machine virtuelle a sa propre table de pages, qui mappe ses adresses de mémoire virtuelles à des adresses de mémoire physique sur le système hôte.\
+Lorsqu'une machine virtuelle accède à sa mémoire, l'hyperviseur intercepte l'opération et la traduit en accès à la mémoire physique sur le système hôte. Les pages de mémoire utilisées par chaque machine virtuelle sont protégées les unes des autres, ce qui signifie que les erreurs dans une machine virtuelle ne peuvent pas affecter les autres machines virtuelles ou le système hôte.
+
+* processeur n'exécute pas les instructions privilégiées en mode user :
+    * a la place le cpu declenche une **faute de protection**
+    * la faute est traitée par l'hyperviseur et l'instruction invitée est émulée
+    * dans le cas d'un hyperviseur de type 2, l'OS redirige la faute de protection vers l'hyperviseur
+
+Mieux résumé par SOPENA :
+```
+Truc qui gère les interruptions (équivalent ICU):
+* pic (program interruptions control)
+* apic (advanced program interuption control)
+
+Implémentation d'un virtual controleur d'interruption en software.
+
+Pour faire des instructions privilégiés, on les laisse s'exécuter et ca va provoquer une exception que l'on va récupérer.
+
+Si on est en type 2 où on émule tout, on remplace les syscall par le code qui les traite. (Le remplacement est fait à la compilation)
+En type 1 on laisse les instructions s'exécuter et c'est le handler de l'hyperviseur qui récupère l'interruption (puisqu'il est en mode S) et qui va la traiter. 
+```
+
+Pb avec instructions qui ont un comportement différent en USER et SUPERVISEUR
+
+## Résumé exécution directe et interception
+
+* Un cas particulier de VMM est l'**hyperviseur** :
+    * La VM exposée au systeme invité a la même architecture que la machine physique 
+    * La traduction binaire dynamique y est plus rapide -> copie des instructions privilégies
+
+* Exécution directe est la méthode qui consiste à exécuter directement le code invité en mode user
+    * isolation mémoire identique à celle des processus hote
+    * instructions privilégiées interceptée et émulées par l'hyperviseur
+## Cout de la virtualisation
+
+* Une DBT (dynamic block translation) ou une exécution directe supprime le surcout d'exécution des instructions non privilégiées.
+* Les opérations privilégiées ne sont pas sensiblement dégradée 
+
+* Operation invitées qui réduisent les perfs sont (sans paravirtualisation) :
+    * shadowing PT (cout du contexte switch)
+    * émulation matériel I/O
+* Exécution directe impossible pour archi X86 à cause des inst silent fail
+
+CPU moderne fournissent assistance matérielle à la virtualisation
+
+## Assistance matérielle à la virtualisation : principe
+
+* Hyperviseur définit une zone de contrôle par vCPU et une zone de sauvegarde par CPU
+* instruction dédiée permet au cpu de passer en mode invité
+
+Cette instruction c'est `vmrun`, quand elle est appelée le contexte du cpu va etre sauvegardé dans la zone dédiée (la zone est en mémoire RAM) et le contexte de l'invité va être chargé.
+
+Deux modes :
+* cpl : KERNEL/USER
+* mode : GUEST/HOST
+
+Le processeur peut néamoins intercepter certaines instructions : il y alors une VMEXIT
+
+* En mode hote la MMU traduit les adresses avec la table des pages de l'hyperviseur pointée physiquement par le cr3.
+* En mode guest, le cr3 pointe physiquement sur la table des pages du systeme invité.
+Un autre registre ncr3 contient l'adresse machine d'une seconde table des pages accessible uniquement par l'hyperviseur.
+
+Nulle part dans le noyau on modifie ncr3, en faite le noyau modifie tjrs cr3 et c'est en fonction du mode que le CPU va écrire dans ncr3 ou cr3.
+
+C'est la MMU qui gère en faite la traduction d'adresse virtuelle -> physique et physique -> machine.
+En gros elle recoit adresse virtuelle du cpu, elle traduit ca en adresse physique en regardant la valeur du cr3. Ensuite elle regarde le mode et si ce mode est à GUEST, alors elle va traduire l'adresse physique en adresse machine en utilisant l'adresse contenue dans ncr3.
+
+Ce qu'on a fait en logiciel avec la shadow table est en faite géré directement par la MMU physique.
+
+## IOMMU et transfert DMA
+
+Machine moderne utilisent des IOMMU, placées entre la mémoire et les controleurs DMA
+
+# LIRE LES 3 DERNIERES SLIDES OU IL RESUME TOUT
