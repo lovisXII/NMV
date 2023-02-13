@@ -83,7 +83,7 @@ Quand :
 
 Les caches LX et LY sont exclusifs :*
 * Une ligne A peut être présente dans au plus un des caches
-* Si Y = X - 1, on dit que LX est ``victim cache`` de LY (donc cache de haut nv est victime bas nv)
+* Si Y = X - 1, on dit que LX est ``victim cache`` de LY (L2 victime L1)
 
 Quand :
 * LY miss et LX miss            -> la nouvelle ligne va dans LY (cache de plus bas niveau)

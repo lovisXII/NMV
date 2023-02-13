@@ -50,6 +50,12 @@ Permet d'initialiser un repo qui va contenir uniquement l'historique. Il ne cont
 git clone --bare
 ```
 
+```
+git init is used to initialize a new Git repository in your current directory. It creates a new directory named .git that contains all the necessary files for version control, including the repository's history and metadata.
+
+git init --bare is used to create a bare repository, which is a special type of repository that doesn't contain a working copy of your files. Instead, it only contains the repository's history and metadata. Bare repositories are typically used as centralized repositories for team collaboration, or for backups.
+```
+
 ## Objets manipulés par git
 
 "Tout est blob"

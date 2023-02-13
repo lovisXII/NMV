@@ -345,7 +345,7 @@ void schedule(void)
 }
 ```
 
-gpt est down......................
+This code is a part of a Linux kernel function for scheduling tasks in a computer system. It selects the next task to be executed and performs a context switch to start executing it. The tasks are stored in a red-black tree (rb_tree) represented by the "rq" structure. The "schedule" function checks if the current task is running and inserts it into the rb_tree if it is. If the "rq" is empty, it becomes idle. If it is not empty, the head of the tree (the task with the earliest virtual runtime) is selected as the next task to be executed, and a context switch to this task is performed.
 
 Avantages : 
 * Complexité O(log(N))

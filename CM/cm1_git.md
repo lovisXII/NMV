@@ -318,7 +318,7 @@ Créer un historique différent.
  En cas de push on peut juste faire un revert
 
 ```
-git revet HEAD^
+git revert HEAD^
 ```
 Ajoute un nouveau commit qui efface le contenu de l'avant dernier commit
 

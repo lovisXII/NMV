@@ -163,38 +163,9 @@ Pour les VMM de type 2, c'est un peu différent :
 * La deuxième méthode est la shadow table
     * Le VMM maj la table des pages hote en fonction des actions de l'invité -> MMU traduit GVA en HPA
     * Le VMM utilise une combinaisons d'autres méthodes pour éviter collision hote/invité.
+## Paravirtualisation
 
-# Paravirtualisation et interface matérielle
-
-shadowing de PT évite traduction logicielle des adresses -> accès mémoire éfficace mais :
-* surcout pour tte écriture dans PT
-* surcout pour tte modification du vCR3
-
-Le shadowing est possible pour du matériel configuré par l'hôte mais dont l'exécution est automatique -> MMU, ICU...etc
-
-Impossible pour le matériel aux actions commandées explicitement par l'hote -> controleur d'E/S, instructions privilégiées...etc
-
-
-Le communication entre invité et VMM est complexe :
-* Interface machine complexe
-* Pilotes complexes
-
-Complexité a un impact sur les performances
-
-Solution -> supprimer l'interface machine virtuelle :
-* modifier l'invité pour faire directement appel au VMM
-* L'invité sait qu'il est virtualisé
-* Communication par hypercall
-
-Pour un invité sans paravirtualisation 
-* VMM doit émuler chaque instruction privilégiée
-
-Un système paravirtualisé utilise un unique hypercall à la place :
-* Peut être n'importe quelle inst que le VMM intercepte et qui ne correspond à aucune action légitime pour le matériel
-* La VMM discrimine les hypercalls des fautes avec une ABI prédéfinie
-* Si c'est un hypercall, le VMM décode selon l'ABI définie et traite la demande si elle est légitime
-
-## Résumé paravirtualisation
+Mécanisme qui permet d'émuler les instructions privilégiés au travers d'un unique hypercall.
 
 ```
 La paravirtualisation est une technique de virtualisation qui implique la modification du système d'exploitation invité pour fonctionner en collaboration avec l'hyperviseur. Au lieu d'émuler complètement la machine physique pour chaque machine virtuelle, les invités sont modifiés pour être conscients de la virtualisation et communiquer directement avec l'hyperviseur.
@@ -208,12 +179,6 @@ Les interfaces matérielles complexes sont remplacées par des interfaces paravi
 # Virtualisation comme isolation
 
 ## Des émulateurs aux hyperviseurs
-
-Rappel objectif emulation : 
-* simuler nveau matos
-* porter logiciel sur différentes archi
-* partage ressources -> exécution simultannée Windows/Linux
-* Isolation de services -> exécution simultannée de plusieurs Linux
 
 Dans cas où on veut émuler une VM semblable à machine physique (meme jeu instruction) : 
 * pas besoin de traduire instructions non privilégiées
