@@ -72,11 +72,106 @@ Pour utiliser un NPU, les programmeurs doivent manuellement anoté une portion d
 
 ![plot](npu.png)
 
+The weight buffer, a circular buffer, stores the weights. When a PE receives an
+input from the bus, it stores the value in its input FIFO.
+When the neuron weights for each PE are configured,
+they are placed into the weight buffer; the compilerdirected schedule ensures that the inputs arrive in the
+same order that their corresponding weights appear in
+the buffer. This way, the PE can perform multiply-andadd operatio
+
 # NPU vs TPU
 
 There are some differences between NPUs and TPUs. One key difference is that TPUs are specifically designed to accelerate deep learning tasks, while NPUs can accelerate a broader range of machine learning algorithms. TPUs are also developed by Google and are only available on the Google Cloud Platform, while NPUs can be developed and used by any company or organization.
 
 GPU perform SIMD instructions while NPU and TPU uses 2D SIMD.
+
+# How to use NPU
+
+3 steps :
+* Programming : programmer marks code region to be transformed
+* compilation : compiler selects and trains a suitable neural network an replace the original code with a NN
+* execution
+
+Once the source code is annotated, the compiler applies the parrot transform in three steps :
+* code observation
+* neural network selection and training
+* binary generation
+
+**Candidate code for the Parrot transformation must satisfy three cri-
+teria: it must be frequently executed (i.e., a “hot” function); it must
+tolerate imprecision in its computation; and it must have well-defined
+inputs and outputs.**
+
+```c
+
+float sobel[[PARROT]](float[3][3] p) {
+    float x, y, r;
+    x = (p[0][0] + 2 * p[0][1] + p[0][2]);
+    x = (p[2][0] + 2 * p[2][1] + p[2][2]);
+    y = (p[0][2] + 2 * p[1][2] + p[2][2]);
+    y = (p[0][0] + 2 * p[1][1] + p[2][0]);
+    r = sqrt(x*x + y*y);
+    if (r >= 0.7071) r = 0.7070;
+    return r;
+}
+
+void edgeDetection ( Image& srcImg , Image& dstImg ) {
+    float [3] [3] p; 
+    float pixel ;
+    for ( int y = 0 ; y < srcImg.height ; ++y )
+        for ( int x = 0 ; x < srcImg.width ; ++x )
+        srcImg.toGrayeScale ( x , y ) ;
+    for ( int y = 0 ; y < srcImg.height ; ++y )
+        for ( int x = 0 ; x < scrImg.width ; ++x ) {
+        p = srcImg.build3x3Window ( x , y ) ;
+        pixel = sobel ( p ) ;
+        dstImg.setPixel( x , y , pixel ) ;
+    }
+}
+```
+
+```c
+
+void edgeDetection(Image& srcImg, Image& dstImg) {
+    float p[3][3];
+    float pixel;
+
+    for (int y = 0; y < srcImg.height; ++y) {
+        for (int x = 0; x < srcImg.width; ++x) {
+            srcImg.toGrayeScale(x, y);
+        }
+    }
+
+    for (int y = 0; y < srcImg.height; ++y) {
+        for (int x = 0; x < scrImg.width; ++x) {
+            p = srcImg.build3x3Window(x, y);
+
+            NPU_SEND(p[0][0]);
+            NPU_SEND(p[0][1]);
+            NPU_SEND(p[0][2]);
+            NPU_SEND(p[1][0]);
+            NPU_SEND(p[1][1]);
+            NPU_SEND(p[1][2]);
+            NPU_SEND(p[2][0]);
+            NPU_SEND(p[2][1]);
+            NPU_SEND(p[2][2]);
+
+            NPU_RECEIVE(pixel);
+            dstImg.setPixel(x, y, pixel);
+        }
+    }
+}
+```
+
+In the Sobel filter example, parts of the code that process the pixels
+can be approximated. The code region that computes pixel addresses
+and builds the window for the sobel function (line 8 in the bottom box
+of Figure 2a) needs to be precise to avoid memory access violations.
+However, the sobel function, which estimates the intensity gradient of
+a pixel, is fundamentally approximate. Thus, approximate execution
+of this function will not result in catastrophic failure and, moreover, is unlikely to cause major degradation of the overall edge detection
+quality. These properties make the sobel function a suitable candidate
+region for approximate execution.
 # Références 
 
 1. https://cloud.google.com/blog/products/ai-machine-learning/an-in-depth-look-at-googles-first-tensor-processing-unit-tpu?hl=en
